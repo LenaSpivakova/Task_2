@@ -2,68 +2,66 @@ package jm.task.core.jdbc.dao;
 
 import jm.task.core.jdbc.model.User;
 import jm.task.core.jdbc.util.Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class UserDaoJDBCImpl implements UserDao {
+    private static final Logger log = LoggerFactory.getLogger(UserDaoJDBCImpl.class);
     private final Connection connection = Util.getConnection();
+
     public UserDaoJDBCImpl() {
 
     }
 
     public void createUsersTable() {
         try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS users (" +
-                    "id SERIAL PRIMARY KEY, " +
-                    "name VARCHAR(64), " +
-                    "lastName VARCHAR(50), " +
-                    "age SMALLINT)");
-            System.out.println("Таблица создана");
+            statement.executeUpdate(SQLconst.CREATE_TABLE);
+            log.info("Таблица создана");
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("Ошибка при создании таблицы");
         }
     }
 
     public void dropUsersTable() {
         try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("DROP TABLE IF EXISTS users");
-            System.out.println("Таблица удалена");
+            statement.execute(SQLconst.DROP_TABLE);
+            log.info("Таблица удалена");
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("Не удалось создать таблицу");
         }
     }
 
     public void saveUser(String name, String lastName, byte age) {
-        String sql = "INSERT INTO users (name, lastName, age) VALUES (?, ?, ?)";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(SQLconst.INSERT_USER)) {
             preparedStatement.setString(1, name);
             preparedStatement.setString(2, lastName);
             preparedStatement.setByte(3, age);
             preparedStatement.executeUpdate();
-            System.out.println("User с именем – " + name + " добавлен в базу данных");
+            log.info("User с именем – {} добавлен в базу данных", name);
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("Не удалось добавить User");
         }
     }
 
     public void removeUserById(long id) {
         try (Statement statement = connection.createStatement()) {
-            String sql = "DELETE FROM test.users WHERE id";
-            statement.executeUpdate(sql);
-            System.out.println("User удален");
+            statement.executeUpdate(SQLconst.DELETE_USER);
+            log.info("User удален");
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("Не удалось удалить User ");
+
         }
     }
 
     public List<User> getAllUsers() {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT * FROM users";
         try (
                 Statement statement = connection.createStatement()) {
-            ResultSet resultSet = statement.executeQuery(sql);
+            ResultSet resultSet = statement.executeQuery(SQLconst.SELECT_ALL);
 
             while (resultSet.next()) {
                 User user = new User();
@@ -76,18 +74,18 @@ public class UserDaoJDBCImpl implements UserDao {
 
         } catch (
                 Exception e) {
-            e.printStackTrace();
+            log.error("Не удалось вывести всех User");
+
         }
         return users;
     }
 
-    public void cleanUsersTable() { String sql = "TRUNCATE TABLE users";
+    public void cleanUsersTable() {
         try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate(sql);
-            System.out.println("Таблица очищена");
+            statement.executeUpdate(SQLconst.CLEAN_TABLE);
+            log.info("Таблица очищена");
         } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println("Не удалось очистить");
+            log.error("Не удалось очистить таблицу");
         }
 
     }

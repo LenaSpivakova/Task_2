@@ -9,10 +9,10 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class Util {
-    public static final String DRIVER = "org.postgresql.Driver";
-    private static final String URL = "jdbc:postgresql://localhost:5432/tutdb";
-    private static final String USERNAME = "postgres";
-    private static final String PASSWORD = "S2002Le";
+//    public static final String DRIVER_KEY = "db.driver";
+    private static final String URL_KEY = "db.url";
+    private static final String USERNAME_KEY = "db.username";
+    private static final String PASSWORD_KEY = "db.password";
     private static SessionFactory sessionFactory;
 
     public static SessionFactory getSessionFactory() {
@@ -20,10 +20,10 @@ public class Util {
             try {
                 Configuration configuration = new Configuration()
                         .addAnnotatedClass(User.class)
-                        .setProperty("hibernate.connection.driver_class", DRIVER)
-                        .setProperty("hibernate.connection.url", URL)
-                        .setProperty("hibernate.connection.username", USERNAME)
-                        .setProperty("hibernate.connection.password", PASSWORD)
+                        .setProperty("hibernate.connection.driver_class", PropertiesUtil.get("db.driver"))
+                        .setProperty("hibernate.connection.url", PropertiesUtil.get("db.url"))
+                        .setProperty("hibernate.connection.username", PropertiesUtil.get("db.username"))
+                        .setProperty("hibernate.connection.password", PropertiesUtil.get("db.password"))
                         .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
                         .setProperty("hibernate.show_sql", "true");
 
@@ -37,7 +37,9 @@ public class Util {
 
     public static Connection getConnection() {
         try {
-            return DriverManager.getConnection(URL, USERNAME, PASSWORD);
+            return DriverManager.getConnection(PropertiesUtil.get(URL_KEY),
+                    PropertiesUtil.get(USERNAME_KEY),
+                    PropertiesUtil.get(PASSWORD_KEY));
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка подключения к базе данных SQL: ", e);
         }

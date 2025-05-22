@@ -4,10 +4,37 @@ import jm.task.core.jdbc.model.User;
 import jm.task.core.jdbc.util.Util;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class UserDaoHibernateImpl implements UserDao {
+    private static final Logger log = LoggerFactory.getLogger(UserDaoHibernateImpl.class);
+
+    private void executeInsideTransaction(Consumer<Session> action) {
+        Transaction tx = null;
+        try (Session session = Util.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+            action.accept(session);
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            log.error("Ошибка при выполнении транзакции", e);
+        }
+    }
+
+    private <R> R executeWithResult(Function<Session, R> function) {
+        try (Session session = Util.getSessionFactory().openSession()) {
+            return function.apply(session);
+        } catch (Exception e) {
+            log.error("Ошибка при выполнении запроса", e);
+            return null;
+        }
+    }
+
     public UserDaoHibernateImpl() {
 
     }
@@ -15,92 +42,55 @@ public class UserDaoHibernateImpl implements UserDao {
 
     @Override
     public void createUsersTable() {
-        Transaction transaction = null;
-        String sql = "CREATE TABLE IF NOT EXISTS users (" +
-                "id SERIAL PRIMARY KEY, " +
-                "name VARCHAR(50), " +
-                "lastName VARCHAR(50), " +
-                "age SMALLINT)";
-        try (Session session = Util.getSessionFactory().openSession()) {
-            transaction = session.beginTransaction();
-            session.createNativeQuery(sql).executeUpdate();
-            transaction.commit();
-        } catch (Exception e) {
-            if (transaction != null) transaction.rollback();
-            e.printStackTrace();
-        }
+        executeInsideTransaction(session ->
+                session.createNativeQuery(SQLconst.CREATE_TABLE).executeUpdate()
+        );
+        log.info("Таблица пользователей создана (если отсутствовала)");
     }
 
     @Override
     public void dropUsersTable() {
-            Transaction transaction = null;
-            String sql = "DROP TABLE IF EXISTS users";
-
-            try (Session session = Util.getSessionFactory().openSession()) {
-                transaction = session.beginTransaction();
-                session.createNativeQuery(sql).executeUpdate();
-                transaction.commit();
-            } catch (Exception e) {
-                if (transaction != null) transaction.rollback();
-                e.printStackTrace();
-            }
+        executeInsideTransaction(session ->
+                session.createNativeQuery(SQLconst.DROP_TABLE).executeUpdate()
+        );
+        log.info("Таблица пользователей удалена ");
     }
 
     @Override
     public void saveUser(String name, String lastName, byte age) {
-        Transaction transaction = null;
-        try (Session session = Util.getSessionFactory().openSession()) {
-            transaction = session.beginTransaction();
+        executeInsideTransaction(session -> {
             session.save(new User(name, lastName, age));
-            transaction.commit();
-            System.out.println("User с именем – " + name + " добавлен в базу данных");
-        } catch (Exception e) {
-            if (transaction != null) transaction.rollback();
-            e.printStackTrace();
-        }
+            log.info("User с именем – {} добавлен в базу данных", name);
+        });
     }
 
     @Override
-    public void removeUserById(long id){
-        Transaction transaction = null;
-        try (Session session = Util.getSessionFactory().openSession()) {
-            transaction = session.beginTransaction();
+    public void removeUserById(long id) {
+        executeInsideTransaction(session -> {
             User user = session.get(User.class, id);
             if (user != null) {
                 session.delete(user);
+                log.info("User с id {} удалён из базы данных", id);
+            } else {
+                log.warn("User с id {} не найден для удаления", id);
             }
-            transaction.commit();
-        } catch (Exception e) {
-            if (transaction != null) transaction.rollback();
-            e.printStackTrace();
-        }
-        }
+        });
+    }
 
     @Override
     public List<User> getAllUsers() {
-        Transaction transaction = null;
-        List<User> users = null;
-        try (Session session = Util.getSessionFactory().openSession()) {
-            transaction = session.beginTransaction();
-            users = session.createQuery("FROM User", User.class).list();
-            transaction.commit();
-        } catch (Exception e) {
-            if (transaction != null) transaction.rollback();
-            e.printStackTrace();
-        }
-      return users;
+        List<User> users = executeWithResult(session ->
+                session.createQuery(SQLconst.SELECT_ALL, User.class).list()
+        );
+        log.info("Получено {} пользователей из базы данных", users != null ? users.size() : 0);
+        return users != null ? users : List.of();
     }
 
     @Override
     public void cleanUsersTable() {
-        Transaction transaction = null;
-        try (Session session = Util.getSessionFactory().openSession()) {
-            transaction = session.beginTransaction();
-            session.createQuery("DELETE FROM User").executeUpdate();
-            transaction.commit();
-        } catch (Exception e) {
-            if (transaction != null) transaction.rollback();
-            e.printStackTrace();
-        }
+        executeInsideTransaction(session ->
+                session.createNativeQuery(SQLconst.CLEAN_TABLE).executeUpdate()
+        );
+        log.info("Таблица пользователей очищена");
     }
 }
