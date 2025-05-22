@@ -1,13 +1,36 @@
+import jm.task.core.jdbc.dao.UserDao;
+import jm.task.core.jdbc.dao.UserDaoHibernateImpl;
+import jm.task.core.jdbc.dao.UserDaoJDBCImpl;
 import jm.task.core.jdbc.model.User;
 import jm.task.core.jdbc.service.UserService;
-import jm.task.core.jdbc.service.UserServiceImpl;
+import jm.task.core.jdbc.service.UserServiceHiberImpl;
+import jm.task.core.jdbc.service.UserServiceJDBCImpl;
+import jm.task.core.jdbc.util.PropertiesUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
 
 public class UserServiceTest {
-    private final UserService userService = new UserServiceImpl();
+    private final UserService userService;
+
+    public UserServiceTest() {
+        String daoType = PropertiesUtil.get("dao");
+        UserDao userDao;
+
+        switch (daoType.toLowerCase()) {
+            case "hibernate":
+                userDao = new UserDaoHibernateImpl();
+                userService = new UserServiceHiberImpl(userDao);
+                break;
+            case "jdbc":
+                userDao = new UserDaoJDBCImpl();
+                userService = new UserServiceJDBCImpl(userDao);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown DAO type: " + daoType);
+        }
+    }
 
     private final String testName = "Ivan";
     private final String testLastName = "Ivanov";
@@ -91,7 +114,7 @@ public class UserServiceTest {
             userService.saveUser(testName, testLastName, testAge);
             userService.cleanUsersTable();
 
-            if (userService.getAllUsers().size() != 0) {
+            if (!userService.getAllUsers().isEmpty()) {
                 Assert.fail("Метод очищения таблицы пользователей реализован не корректно");
             }
         } catch (Exception e) {
